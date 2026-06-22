@@ -13,7 +13,7 @@ export function AppProvider({ children }) {
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
   }, []);
 
-  const API = process.env.REACT_APP_API_URL || '';
+  const API = process.env.REACT_APP_API_URL || 'https://my-billing-app-xshn.onrender.com';
 
   const fetchProducts = useCallback(async (search = '') => {
     try {
