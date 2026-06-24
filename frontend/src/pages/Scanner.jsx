@@ -8,10 +8,10 @@ import { useApp } from '../context/AppContext';
 import ManualModal from '../components/ManualModal';
 
 // Minimum ms between two successful scans (debounce)
-const SCAN_COOLDOWN = 2500;
+const SCAN_COOLDOWN = 1500;
 
 export default function Scanner() {
-  const { addProduct, addToast } = useApp();
+  const { addProduct, addToast, API } = useApp();
 
   const [camOn,       setCamOn]      = useState(false);
   const [product,     setProduct]    = useState(null);
@@ -96,19 +96,19 @@ export default function Scanner() {
       html5QrRef.current = qr;
 
       const config = {
-        fps: 12,
+        fps: 25,                      // high frame rate = more decode attempts per second
         qrbox: (vw, vh) => {
-          // Responsive scan box: 70% of the shorter edge, min 200 max 350
-          const side = Math.round(Math.min(vw, vh) * 0.70);
-          const clamped = Math.max(200, Math.min(350, side));
-          // Wide rectangle is better for 1D barcodes
-          return { width: Math.round(clamped * 1.6), height: clamped };
+          // Narrow tall strip — 1D barcodes are wide but short; a tight window
+          // means fewer pixels per frame and dramatically faster ZXing decode.
+          const w = Math.round(Math.min(vw, 400) * 0.88);
+          const h = Math.round(w * 0.38);           // ~38% height ratio
+          return { width: w, height: Math.max(h, 100) };
         },
-        aspectRatio: 16 / 9,
-        // Use rear camera via device ID when possible, else fall back to facingMode
-        ...(deviceId
-          ? { videoConstraints: { deviceId: { exact: deviceId } } }
-          : { videoConstraints: { facingMode: { ideal: 'environment' } } }),
+        aspectRatio: 1.333,           // 4:3 gives more vertical camera pixels on mobile
+        disableFlip: false,           // allow mirror-flip detection for tricky angles
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true,  // use native BarcodeDetector API when
+        },                                      // available (Chrome/Android) — 3-5× faster
       };
 
       await qr.start(
@@ -200,7 +200,7 @@ export default function Scanner() {
     setForm({ selling_price: '', mrp: '', stock: '' });
 
     try {
-      const r    = await fetch(`/api/scan/${encodeURIComponent(code)}`);
+      const r    = await fetch(`${API}/api/scan/${encodeURIComponent(code)}`);
       const data = await r.json();
       if (r.ok) {
         setProduct(data);
